@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Link2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown, Loader2 } from 'lucide-react'
+import { Link2, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown, Loader2, Search, X } from 'lucide-react'
 import * as api from '../api/client'
 import type { GroupResponse, GroupsPage, LibraryStatus } from '../api/client'
 import { usePolling } from '../api/usePolling'
@@ -39,6 +39,7 @@ type LibState = {
   sort: string
   sortDir: 'asc' | 'desc'
   status: LibraryStatus
+  q: string
 }
 
 type LibAction =
@@ -47,6 +48,7 @@ type LibAction =
   | { type: 'setLoading'; value: boolean }
   | { type: 'toggleSort'; key: string }
   | { type: 'setStatus'; value: LibraryStatus }
+  | { type: 'setQuery'; value: string }
 
 const initialLib: LibState = {
   page: 0,
@@ -55,6 +57,7 @@ const initialLib: LibState = {
   sort: 'added',
   sortDir: 'desc',
   status: 'all',
+  q: '',
 }
 
 function libReducer(state: LibState, action: LibAction): LibState {
@@ -69,6 +72,7 @@ function libReducer(state: LibState, action: LibAction): LibState {
       return { ...state, sort: action.key, sortDir: 'desc', page: 0 }
     }
     case 'setStatus': return { ...state, status: action.value, page: 0 }
+    case 'setQuery': return { ...state, q: action.value, page: 0 }
   }
 }
 
@@ -136,17 +140,23 @@ export default function PipelineDetail() {
   const fetchLibrary = useCallback(async () => {
     dispatchLib({ type: 'setLoading', value: true })
     try {
-      const data = await api.listLibrary(pipelineId, lib.page, PAGE_SIZE, lib.sort, lib.sortDir, lib.status)
+      const data = await api.listLibrary(pipelineId, lib.page, PAGE_SIZE, lib.sort, lib.sortDir, lib.status, lib.q)
       dispatchLib({ type: 'setData', value: data })
     } catch { /* ignore */ }
     dispatchLib({ type: 'setLoading', value: false })
-  }, [pipelineId, lib.page, lib.sort, lib.sortDir, lib.status])
+  }, [pipelineId, lib.page, lib.sort, lib.sortDir, lib.status, lib.q])
 
-  // Switching to the library tab fetches its data in the click handler
-  // rather than watching `tab` from an effect (avoids extra render).
+  // Library data is server-paginated, so re-fetch whenever the tab is open
+  // and any of page/sort/sortDir/status/pipelineId changes. fetchLibrary is
+  // a useCallback whose identity changes on those deps, so this effect fires
+  // on tab switch, pagination, sort toggle, and status filter changes.
+  useEffect(() => {
+    if (tab !== 'library') return
+    void fetchLibrary()
+  }, [tab, fetchLibrary])
+
   const handleTabSwitch = (next: 'pending' | 'library') => {
     setTab(next)
-    if (next === 'library') void fetchLibrary()
   }
 
   const handleScan = async () => {
@@ -370,6 +380,15 @@ function LibraryTab({ lib, dispatchLib, onAction }: {
   dispatchLib: (action: LibAction) => void
   onAction: () => void
 }) {
+  // Local input state for the quick filter; debounced into the reducer's `q`
+  // so the server query only fires after the user stops typing.
+  const [queryInput, setQueryInput] = useState('')
+  useEffect(() => {
+    if (queryInput === lib.q) return
+    const t = setTimeout(() => dispatchLib({ type: 'setQuery', value: queryInput }), 300)
+    return () => clearTimeout(t)
+  }, [queryInput, lib.q, dispatchLib])
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -390,7 +409,23 @@ function LibraryTab({ lib, dispatchLib, onAction }: {
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-600 ml-auto">{lib.data?.total ?? 0} bangous</span>
+        <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+          <input
+            type="text"
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            placeholder="Search number or title…"
+            className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg pl-8 pr-7 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gray-600 transition"
+          />
+          {queryInput && (
+            <button type="button" onClick={() => setQueryInput('')} aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        <span className="text-xs text-gray-600 w-full sm:w-auto sm:ml-0">{lib.data?.total ?? 0} bangous</span>
       </div>
 
       {lib.loading && !lib.data ? (
@@ -401,8 +436,8 @@ function LibraryTab({ lib, dispatchLib, onAction }: {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500 mb-2">{lib.status === 'missing' ? 'No missing links' : lib.status === 'alive' ? 'No alive links' : 'Library is empty'}</p>
-          <p className="text-xs text-gray-700">{lib.status === 'all' ? 'Link groups from the Pending tab to build your library.' : 'Change the status filter to see other library entries.'}</p>
+          <p className="text-gray-500 mb-2">{lib.q ? 'No matches' : lib.status === 'missing' ? 'No missing links' : lib.status === 'alive' ? 'No alive links' : 'Library is empty'}</p>
+          <p className="text-xs text-gray-700">{lib.q ? 'Try a different search term.' : lib.status === 'all' ? 'Link groups from the Pending tab to build your library.' : 'Change the status filter to see other library entries.'}</p>
         </div>
       )}
 

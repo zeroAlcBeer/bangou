@@ -20,7 +20,7 @@ type Store interface {
 	GetBangouByPipelineAndNumber(ctx context.Context, pipelineID int64, number string) (*Bangou, error)
 	UpdateBangouPaths(ctx context.Context, id int64, nfoPath, coverPath, rawPath string) error
 	DeleteBangou(ctx context.Context, id int64) error
-	ListBangousByPipeline(ctx context.Context, pipelineID int64, limit, offset int, sort, order, status string) ([]Bangou, int, error)
+	ListBangousByPipeline(ctx context.Context, pipelineID int64, limit, offset int, sort, order, status, q string) ([]Bangou, int, error)
 	ListAllBangous(ctx context.Context) ([]Bangou, error)
 	IsBangouCommitted(ctx context.Context, pipelineID int64, number string) (bool, error)
 

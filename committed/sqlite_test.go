@@ -102,7 +102,7 @@ func TestBangouAndFiles(t *testing.T) {
 		t.Fatalf("is committed: %v %v", ok, err)
 	}
 
-	bangous, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "added", "desc", "")
+	bangous, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "added", "desc", "", "")
 	if err != nil || total != 1 || len(bangous) != 1 {
 		t.Fatalf("bangous: %v total=%d len=%d", err, total, len(bangous))
 	}
@@ -157,7 +157,7 @@ func TestBangouMultiPart(t *testing.T) {
 	bid2, _ := s.CreateBangou(ctx, &Bangou{PipelineID: pid, Number: "ACHJ-057", OutDir: "/out/ACHJ-057"})
 	_ = s.CreateBangouFile(ctx, &BangouFile{BangouID: bid2, LinkPath: "/out/ACHJ-057/ACHJ-057.mp4", LinkType: "hardlink"})
 
-	bangous, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "")
+	bangous, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,17 +197,17 @@ func TestListBangousByPipelineStatus(t *testing.T) {
 	multiFiles, _ := s.ListBangouFilesByBangou(ctx, multiID)
 	_ = s.SetBangouFileAlive(ctx, multiFiles[1].ID, false)
 
-	_, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "")
+	_, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "", "")
 	if err != nil || total != 3 {
 		t.Fatalf("all total=%d err=%v", total, err)
 	}
 
-	alive, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "alive")
+	alive, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "alive", "")
 	if err != nil || total != 1 || len(alive) != 1 || alive[0].Number != "ALIVE-001" {
 		t.Fatalf("alive total=%d items=%+v err=%v", total, alive, err)
 	}
 
-	missing, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "missing")
+	missing, total, err := s.ListBangousByPipeline(ctx, pid, 10, 0, "number", "asc", "missing", "")
 	if err != nil || total != 2 || len(missing) != 2 {
 		t.Fatalf("missing total=%d items=%+v err=%v", total, missing, err)
 	}

@@ -70,7 +70,7 @@ func (h *Handlers) ListPipelines(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]PipelineResponse, 0, len(pipes))
 	for _, p := range pipes {
-		_, libCount, _ := h.store.ListBangousByPipeline(ctx, p.ID, 0, 0, "", "", "")
+		_, libCount, _ := h.store.ListBangousByPipeline(ctx, p.ID, 0, 0, "", "", "", "")
 		pending := 0
 		if rt := h.registry.Get(p.ID); rt != nil {
 			pending = len(rt.Manager.ListGroups()) + len(rt.Manager.ListUnknowns())
@@ -136,7 +136,7 @@ func (h *Handlers) DeletePipeline(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid id")
 		return
 	}
-	_, total, err := h.store.ListBangousByPipeline(r.Context(), id, 0, 0, "", "", "")
+	_, total, err := h.store.ListBangousByPipeline(r.Context(), id, 0, 0, "", "", "", "")
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -490,7 +490,8 @@ func (h *Handlers) ListLibrary(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")   // "added", "number", "year", "rating"
 	order := r.URL.Query().Get("order") // "asc", "desc"
 	status := r.URL.Query().Get("status")
-	bangous, total, err := h.store.ListBangousByPipeline(ctx, id, size, page*size, sort, order, status)
+	q := r.URL.Query().Get("q")
+	bangous, total, err := h.store.ListBangousByPipeline(ctx, id, size, page*size, sort, order, status, q)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

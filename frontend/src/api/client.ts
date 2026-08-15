@@ -197,8 +197,8 @@ export interface BangouResponse {
 
 export type LibraryStatus = 'all' | 'alive' | 'missing'
 
-export const listLibrary = (pipelineId: number, page = 0, size = 12, sort = 'added', order = 'desc', status: LibraryStatus = 'all') =>
-  request<LibraryPage>('GET', `/pipelines/${pipelineId}/library?page=${page}&size=${size}&sort=${sort}&order=${order}&status=${status}`)
+export const listLibrary = (pipelineId: number, page = 0, size = 12, sort = 'added', order = 'desc', status: LibraryStatus = 'all', q = '') =>
+  request<LibraryPage>('GET', `/pipelines/${pipelineId}/library?page=${page}&size=${size}&sort=${sort}&order=${order}&status=${status}&q=${encodeURIComponent(q)}`)
 
 // ── Library Actions ──
 

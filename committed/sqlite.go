@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -232,11 +233,30 @@ func resolveBangouStatusWhere(status string) string {
 	}
 }
 
-func (s *SQLiteStore) ListBangousByPipeline(ctx context.Context, pipelineID int64, limit, offset int, sort, order, status string) ([]Bangou, int, error) {
+// resolveBangouQWhere builds a case-insensitive LIKE filter on number and
+// metadata title. Returns the SQL fragment (with leading " AND ") and the
+// bound argument (or nil when q is empty).
+func resolveBangouQWhere(q string) (string, any) {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return "", nil
+	}
+	like := "%" + q + "%"
+	return ` AND (b.number LIKE ? COLLATE NOCASE OR COALESCE(m.title,'') LIKE ? COLLATE NOCASE)`, like
+}
+
+func (s *SQLiteStore) ListBangousByPipeline(ctx context.Context, pipelineID int64, limit, offset int, sort, order, status, q string) ([]Bangou, int, error) {
 	statusWhere := resolveBangouStatusWhere(status)
+	qWhere, qArg := resolveBangouQWhere(q)
+	where := statusWhere + qWhere
+
 	var total int
-	countQuery := `SELECT COUNT(*) FROM bangous b WHERE b.pipeline_id = ?` + statusWhere
-	if err := s.db.QueryRowContext(ctx, countQuery, pipelineID).Scan(&total); err != nil {
+	countQuery := `SELECT COUNT(*) FROM bangous b WHERE b.pipeline_id = ?` + where
+	countArgs := []any{pipelineID}
+	if qArg != nil {
+		countArgs = append(countArgs, qArg, qArg)
+	}
+	if err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	if limit <= 0 {
@@ -250,9 +270,15 @@ func (s *SQLiteStore) ListBangousByPipeline(ctx context.Context, pipelineID int6
 		 LEFT JOIN metadata m ON b.id = m.bangou_id
 		 WHERE b.pipeline_id = ?%s
 		 ORDER BY %s
-		 LIMIT ? OFFSET ?`, statusWhere, orderClause)
+		 LIMIT ? OFFSET ?`, where, orderClause)
 
-	rows, err := s.db.QueryContext(ctx, query, pipelineID, limit, offset)
+	listArgs := []any{pipelineID}
+	if qArg != nil {
+		listArgs = append(listArgs, qArg, qArg)
+	}
+	listArgs = append(listArgs, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, listArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
