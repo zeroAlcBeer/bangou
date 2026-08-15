@@ -251,7 +251,7 @@ func (s *SQLiteStore) ListBangousByPipeline(ctx context.Context, pipelineID int6
 	where := statusWhere + qWhere
 
 	var total int
-	countQuery := `SELECT COUNT(*) FROM bangous b WHERE b.pipeline_id = ?` + where
+	countQuery := `SELECT COUNT(*) FROM bangous b LEFT JOIN metadata m ON b.id = m.bangou_id WHERE b.pipeline_id = ?` + where
 	countArgs := []any{pipelineID}
 	if qArg != nil {
 		countArgs = append(countArgs, qArg, qArg)
