@@ -6,11 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/zeroAlcBeer/bangou/backup"
 	"github.com/zeroAlcBeer/bangou/checker"
 	"github.com/zeroAlcBeer/bangou/committed"
 	"github.com/zeroAlcBeer/bangou/config"
@@ -52,9 +50,6 @@ func main() {
 
 	// Checker: periodic link health check
 	go checker.Run(ctx, db, time.Hour)
-
-	// Daily DB snapshot next to the database file
-	go backup.Run(ctx, db, filepath.Join(filepath.Dir(cfg.DBPath), "backups"))
 
 	// Web server
 	srv := &http.Server{Addr: cfg.ListenAddr, Handler: web.NewServer(reg, db, buildSHA)}

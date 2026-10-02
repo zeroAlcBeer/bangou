@@ -41,13 +41,6 @@ func NewSQLite(dsn string) (*SQLiteStore, error) {
 
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
-// VacuumInto writes a consistent snapshot of the database to destPath.
-// Fails if destPath already exists.
-func (s *SQLiteStore) VacuumInto(ctx context.Context, destPath string) error {
-	_, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, destPath)
-	return err
-}
-
 // ── Pipelines ──
 
 func (s *SQLiteStore) CreatePipeline(ctx context.Context, p *Pipeline) (int64, error) {
